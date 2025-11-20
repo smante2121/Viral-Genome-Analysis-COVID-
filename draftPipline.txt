@@ -1,0 +1,150 @@
+FINAL PIPELINE (TEXT-ONLY VERSION)
+SARS-CoV-2 Variant Analysis Using Bowtie2, SAMtools, and BCFtools
+Data: SRR14522714 (FASTQ) + NC_045512.2 (FASTA)
+
+------------------------------------------------------------
+0. DATA SOURCES
+------------------------------------------------------------
+Reference genome (FASTA): NC_045512.2 – baseline SARS-CoV-2 genome.
+Viral sample (FASTQ): SRR14522714 – paired-end sequencing reads.
+
+We use the reference to align the sample reads and detect mutations.
+
+------------------------------------------------------------
+1. DOWNLOAD DATA
+------------------------------------------------------------
+Use SRA Toolkit to download FASTQ:
+fastq-dump --split-files SRR14522714
+
+Download reference FASTA (NC_045512.2) from NCBI.
+
+Optional graph: read length histogram.
+
+------------------------------------------------------------
+2. BUILD BOWTIE2 INDEX
+------------------------------------------------------------
+bowtie2-build NC_045512.2.fasta covid_ref
+
+Concepts used: FM-index, BWT, indexing (from class slides).
+
+Optional diagram: genome/ORF map.
+
+------------------------------------------------------------
+3. ALIGN READS TO REFERENCE
+------------------------------------------------------------
+bowtie2 -x covid_ref -1 SRR14522714_1.fastq -2 SRR14522714_2.fastq -S aligned.sam
+
+Class topics used: alignment scoring, SAM format, MAPQ, CIGAR strings.
+
+Graphs:
+- Mapping quality histogram
+- Mapped vs unmapped pie chart
+
+------------------------------------------------------------
+4. PROCESS SAM/BAM FILES
+------------------------------------------------------------
+Convert SAM to BAM:
+samtools view -bS aligned.sam > aligned.bam
+
+Sort BAM:
+samtools sort aligned.bam -o aligned.sorted.bam
+
+Index BAM:
+samtools index aligned.sorted.bam
+
+Graph:
+- File size comparison: SAM vs BAM vs sorted BAM
+
+------------------------------------------------------------
+5. COVERAGE ANALYSIS
+------------------------------------------------------------
+Compute coverage:
+samtools depth aligned.sorted.bam > depth.txt
+
+Class topics: depth, coverage, sequencing redundancy.
+
+Graphs:
+- Depth vs genome position (line plot)
+- Coverage histogram
+
+------------------------------------------------------------
+6. VARIANT CALLING
+------------------------------------------------------------
+Create mpileup:
+samtools mpileup -uf NC_045512.2.fasta aligned.sorted.bam > raw.mpileup
+
+Call variants:
+bcftools call -mv -o variants_raw.vcf raw.mpileup
+
+Graphs:
+- Scatter plot of QUAL vs DP
+- SNP vs indel bar chart
+
+------------------------------------------------------------
+7. VARIANT FILTERING
+------------------------------------------------------------
+Filter variants:
+bcftools filter -i 'DP>=10 && QUAL>=30' variants_raw.vcf > variants_filtered.vcf
+
+Class topics: VCF fields (QUAL, DP, AF), variant quality.
+
+Graph:
+- Variant count before vs after filtering
+
+------------------------------------------------------------
+8. VARIANT ANNOTATION
+------------------------------------------------------------
+If allowed:
+bcftools csq -f NC_045512.2.fasta -g genes.gff variants_filtered.vcf > variants_annotated.vcf
+
+Class topics: ORFs, coding sequences, synonymous vs non-synonymous changes.
+
+Graphs:
+- Lollipop plot of mutation positions
+- Pie chart of mutation types
+- Spike-only mutation bar plot
+
+------------------------------------------------------------
+9. INTERPRETATION
+------------------------------------------------------------
+Summarize findings:
+- Number of variants
+- Which genes are affected
+- Amino acid changes
+- Spike mutations
+- Comparison to known mutations
+
+Graphs:
+- Final mutation summary figure
+- Coverage plot
+- Variant type bar chart
+
+------------------------------------------------------------
+10. OPTIONAL STEPS (FUTURE WORK)
+------------------------------------------------------------
+(Not required but mentioned in class)
+
+Possible extensions:
+- Multi-sample comparison
+- PCA or clustering of variant profiles
+- Phylogenetic analysis
+- BLAST verification of mutated regions
+- Multiple sequence alignment of Spike region
+
+------------------------------------------------------------
+SUMMARY OF FULL WORKFLOW
+------------------------------------------------------------
+1. Download FASTA + FASTQ
+2. Build Bowtie2 index
+3. Align reads
+4. Convert, sort, index BAM
+5. Generate coverage statistics
+6. Call variants using mpileup + bcftools call
+7. Filter variants by quality and depth
+8. Annotate variants
+9. Produce graphs at each stage
+10. Interpret biological meaning of mutations
+
+This workflow uses only methods covered in class slides (L10-L22).
+
+END OF TEXT FILE

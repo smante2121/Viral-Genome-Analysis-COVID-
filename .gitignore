@@ -1,0 +1,31 @@
+sratoolkit.3.2.1-mac-x86_64/
+
+# Raw sequencing data ---
+*.fastq
+*.fastq.gz
+
+# Alignment files ---
+*.sam
+*.bam
+*.bai
+
+# Pileup & large variant intermediates ---
+*.mpileup
+*raw.mpileup
+
+# BCF/VCF intermediate huge
+*.bcf
+!raw.bcf
+!variants_raw.bcf
+
+# Keep final VCFs
+# (variants_filtered.vcf, variants_raw.vcf stay)
+
+# Bowtie index (optional to ignore)
+*.bt2
+
+# FastQC junk
+*_fastqc.zip
+
+# macOS junk
+.DS_Store
