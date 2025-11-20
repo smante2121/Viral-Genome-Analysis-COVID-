@@ -1,0 +1,131 @@
+Downloading Specifics:
+
+FASTA reference genome: https://www.ncbi.nlm.nih.gov/nuccore/NC_045512.2
+Click FASTA in top left corner
+Then send to drop down in top right: select full record, select file, format FASTA, then create file
+Browser generated sequence.fasta file to my downloads (/Users/sophiamantegari/Downloads/segience.fasta)
+Move to project folder:
+In terminal first navigate to project cd /Users/sophiamantegari/ViralGenomeAnalysis
+mv /Users/sophiamantegari/Downloads/sequence.fasta ./sarscov2_reference.fasta
+Checking first few lines: head sarscov2_reference.fasta
+>NC_045512.2 Severe acute respiratory syndrome coronavirus 2 isolate Wuhan-Hu-1, complete genome
+ATTAAAGGTTTATACCTTCCCAGGTAACAAACCAACCAACTTTCGATCTCTTGTAGATCTGTTCTCTAAA
+CGAACTTTAAAATCTGTGTGGCTGTCACTCGGCTGCATGCTTAGTGCACTCACGCAGTATAATTAATAAC
+TAATTACTGTCGTTGACAGGACACGAGTAACTCGTCTATCTTCTGCAGGCTGCTTACGGTTTCGTCCGTG
+Additional rough sanity check of length
+grep -v '^>' sarscov2_reference.fasta | tr -d '\n' | wc -c
+   29903
+
+FASTQ Viral Sample:https://www.ncbi.nlm.nih.gov/sra/?term=SRR14522714 
+Make sure SRA Toolkit is installed
+which fasterq-dump
+If not then:
+https://github.com/ncbi/sra-tools/wiki/02.-Installing-SRA-Toolkit
+Follow instructions:
+curl --output sratoolkit.tar.gz https://ftp-trace.ncbi.nlm.nih.gov/sra/sdk/current/sratoolkit.current-mac64.tar.gz
+tar -vxzf sratoolkit.tar.gz
+Add to path (check the file name and replace with personal location):
+echo 'export PATH=/Users/sophiamantegari/ViralGenomeAnalysis/sratoolkit.3.2.1-mac-x86_64/bin:$PATH' >> ~/.zshrc
+Reload shell
+source ~/.zshrc
+Then run 
+fasterq-dump SRR14522714
+Produces
+spots read      : 9,307,709
+reads read      : 18,615,418
+reads written   : 18,615,418
+Files created are: SRR14522714_1.fastq, SRR14522714_2.fastq
+brew install fastqc
+fastqc SRR14522714_1.fastq SRR14522714_2.fastq
+rm *_fastqc.zip
+
+
+Building bowie2index
+which bowtie2
+bowtie2-build sarscov2_reference.fasta sarscov2_reference
+Output:
+Sarscov2_reference.rev.1.bt2, sarscov2_reference.rev.2.bt2, Sarscov2_reference.1.bt2, sarscov2_reference.2.bt2, Sarscov2_reference.3.bt2, sarscov2_reference.4.bt2     
+
+Align the paired-end reads to the reference
+bowtie2 -x sarscov2_reference \
+ -1 SRR14522714_1.fastq \
+ -2 SRR14522714_2.fastq \
+ -S aligned.sam
+  
+9307709 reads; of these:
+  9307709 (100.00%) were paired; of these:
+    3313306 (35.60%) aligned concordantly 0 times
+    5994403 (64.40%) aligned concordantly exactly 1 time
+    0 (0.00%) aligned concordantly >1 times
+    ----
+    3313306 pairs aligned concordantly 0 times; of these:
+      1481368 (44.71%) aligned discordantly 1 time
+    ----
+    1831938 pairs aligned 0 times concordantly or discordantly; of these:
+      3663876 mates make up the pairs; of these:
+        3173155 (86.61%) aligned 0 times
+        490721 (13.39%) aligned exactly 1 time
+        0 (0.00%) aligned >1 times
+82.95% overall alignment rate
+
+Output aligned.sam
+
+Convert SAM → BAM
+samtools view -S -b aligned.sam > aligned.bam
+Created align.bam
+
+Sort the BAM file
+Required for: mpileup, variant calling indexing, IGV visualization
+samtools sort aligned.bam -o aligned.sorted.bam
+Output: aligned.sorted.bam
+Index the sorted BAM
+The index lets mpileup and bcftools jump anywhere in the genome.
+samtools index aligned.sorted.bam
+Output: aligned.sorted.bam.bai
+
+
+Coverage analysis:
+samtools depth aligned.sorted.bam > depth.txt
+for plotting coverage later, not required for variant calling
+
+Use BCFtools mpileup (Correct Method on macOS)
+Command
+bcftools mpileup -f sarscov2_reference.fasta aligned.sorted.bam -Ob -o raw.bcf
+Outputs
+raw.bcf (binary pileup file)
+What we did & Why
+BCFtools mpileup is the modern and recommended variant-calling pipeline.
+Produces a proper BCF file compatible with bcftools call.
+Avoids macOS-related issues with samtools mpileup.
+Purpose:
+This is the updated version of the mpileup → call pipeline taught in the variant-calling portion of the course.
+
+Variant Calling
+Command
+bcftools call -mv -Ob -o variants_raw.bcf raw.bcf
+bcftools view variants_raw.bcf > variants_raw.vcf
+Outputs
+variants_raw.bcf (binary variant calls)
+variants_raw.vcf (human-readable variant list)
+What we did & Why
+bcftools call identifies:
+SNPs
+Indels
+Genotypes (GT: 1/1, 0/1)
+Allelic depths (AD)
+Quality scores (QUAL)
+Depth (DP)
+Conversion to VCF enables plotting, filtering, and interpretation.
+Purpose:
+This step directly matches the class content on variant calling, VCF structure, and downstream annotation.
+
+
+
+
+FILTER VARIANTS
+bcftools filter -i 'DP>=10 && QUAL>=30' variants_raw.vcf > variants_filtered.vcf
+This removes junk and low-quality variants.
+filters variants based on exactly the two metrics, depth DH and QUAl vairnet score quality. DP>=10 keeps only variants supported by at least 10 reads. This removes “fake” variants from low-coverage areas. QUAL>=30. keeps only variants with a Phred-scaled confidence score ≥ 30
+(meaning 99.9% probability the variant is real).
+Output: variants_filtered.vcf which includes: Only real mutations, High-confidence SNPs and indels, Mutations appropriate for your Python analysis
+
