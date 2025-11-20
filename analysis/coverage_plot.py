@@ -3,26 +3,30 @@ import pandas as pd
 import matplotlib.pyplot as plt
 import os
 
-depth_file = "depth.txt"
-outdir = "plots"
-os.makedirs(outdir, exist_ok=True)
+os.makedirs("plots", exist_ok=True)
 
-df = pd.read_csv(depth_file, sep="\t", header=None, names=["chrom", "pos", "depth"])
+df = pd.read_csv("depth.txt", sep="\t", header=None, names=["chrom", "pos", "depth"])
+df["smooth"] = df["depth"].rolling(window=200, center=True, min_periods=1).mean()
 
-plt.figure(figsize=(14,5))
-plt.plot(df["pos"], df["depth"], linewidth=0.7)
-plt.title("Coverage Across SARS-CoV-2 Genome")
+# Smoothed coverage plot
+plt.figure(figsize=(16,5))
+plt.plot(df["pos"], df["smooth"], linewidth=0.8, color="steelblue")
+plt.title("Genome-wide Coverage (Smoothed)")
 plt.xlabel("Genome Position")
-plt.ylabel("Depth")
+plt.ylabel("Depth (Smoothed)")
 plt.tight_layout()
-plt.savefig(f"{outdir}/coverage_plot.png", dpi=300)
+plt.savefig("plots/coverage_plot.png", dpi=300)
 
+# Histogram (log scale)
 plt.figure(figsize=(7,5))
-plt.hist(df["depth"], bins=50)
-plt.title("Coverage Depth Distribution")
+plt.hist(df["depth"], bins=80, log=True, color="steelblue")
+plt.axvline(df["depth"].median(), color="red", linestyle="--",
+            label=f"Median = {df['depth'].median():.0f}")
+plt.title("Coverage Depth Distribution (log-scale)")
 plt.xlabel("Depth")
-plt.ylabel("Count")
+plt.ylabel("Count (log scale)")
+plt.legend()
 plt.tight_layout()
-plt.savefig(f"{outdir}/coverage_histogram.png", dpi=300)
+plt.savefig("plots/coverage_histogram.png", dpi=300)
 
-print("Saved: coverage_plot.png, coverage_histogram.png")
+print("Saved enhanced coverage plots.")

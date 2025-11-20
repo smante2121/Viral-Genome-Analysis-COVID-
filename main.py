@@ -3,9 +3,6 @@ import os
 import subprocess
 import sys
 
-# ---------------------------
-# CONFIG
-# ---------------------------
 ANALYSIS_DIR = "analysis"
 PLOTS_DIR = "plots"
 
@@ -18,12 +15,8 @@ SCRIPTS = [
     "spike_mutation_plot.py"
 ]
 
-# ---------------------------
-# UTILITY FUNCTIONS
-# ---------------------------
-
 def run_script(script_path):
-    """Run a python script and stream its output."""
+    """Run a single analysis script and stream its output."""
     print(f"\n▶ Running {script_path} ...")
 
     result = subprocess.run(
@@ -33,13 +26,13 @@ def run_script(script_path):
         text=True
     )
 
-    # Print results
-    if result.stdout:
+    # Stdout
+    if result.stdout.strip():
         print(result.stdout)
 
-    # Error handling
-    if result.stderr:
-        print(f"⚠️  Error running {script_path}:")
+    # Stderr handling
+    if result.stderr.strip():
+        print(f"⚠️ Error in {script_path}:")
         print(result.stderr)
         return False
 
@@ -47,21 +40,44 @@ def run_script(script_path):
     return True
 
 
-# ---------------------------
-# MAIN EXECUTION LOGIC
-# ---------------------------
+def check_dependencies():
+    """Warn user if key Python modules are missing."""
+    print("\n🔍 Checking dependencies...")
+
+    required = ["pandas", "matplotlib", "numpy", "Bio"]
+    missing = []
+
+    for pkg in required:
+        try:
+            __import__(pkg)
+        except ImportError:
+            missing.append(pkg)
+
+    if missing:
+        print("\n❌ Missing required packages:")
+        for m in missing:
+            print(f"   - {m}")
+        print("\nInstall them with:")
+        print("   pip install " + " ".join(missing))
+        sys.exit(1)
+    else:
+        print("✔ All dependencies found.")
+
 
 def main():
     print("=======================================")
-    print("   SARS-CoV-2 VARIANT ANALYSIS PIPELINE")
-    print("=======================================")
+    print("  SARS-CoV-2 VARIANT ANALYSIS PIPELINE")
+    print("=======================================\n")
+
+    # Check dependencies
+    check_dependencies()
 
     # Ensure plots folder exists
     if not os.path.exists(PLOTS_DIR):
         os.makedirs(PLOTS_DIR)
         print(f"Created folder: {PLOTS_DIR}")
 
-    # Run each analysis script
+    # Run analysis scripts in order
     for script in SCRIPTS:
         script_path = os.path.join(ANALYSIS_DIR, script)
 
@@ -71,13 +87,14 @@ def main():
 
         success = run_script(script_path)
         if not success:
-            print(f"❌ Stopping pipeline due to error in {script}")
+            print(f"\n❌ Pipeline stopped due to error in {script}")
             return
 
     print("\n=======================================")
-    print("   All analysis scripts executed!")
-    print("   Plots saved to: plots/")
-    print("=======================================")
+    print("  ALL ANALYSIS COMPLETED SUCCESSFULLY!")
+    print(f"  Plots saved in: {PLOTS_DIR}/")
+    print("  Annotated variants saved in: variant_table_annotated.csv")
+    print("=======================================\n")
 
 
 if __name__ == "__main__":

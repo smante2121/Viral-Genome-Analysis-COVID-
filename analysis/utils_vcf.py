@@ -1,29 +1,27 @@
 # utils_vcf.py
 import pandas as pd
-import os
 import re
 
 def load_vcf(vcf_path):
     rows = []
-    with open(vcf_path, 'r') as f:
+    with open(vcf_path, "r") as f:
         for line in f:
             if line.startswith("#"):
                 continue
-            
-            fields = line.strip().split('\t')
-            chrom, pos, id_, ref, alt, qual, flt, info = fields[:8]
+
+            fields = line.strip().split("\t")
+            chrom, pos, vid, ref, alt, qual, flt, info = fields[:8]
 
             dp = None
             af = None
 
-            # extract DP and AF from INFO field
             if "DP=" in info:
-                dp = re.search(r"DP=(\d+)", info)
-                dp = int(dp.group(1)) if dp else None
+                dp_match = re.search(r"DP=(\d+)", info)
+                dp = int(dp_match.group(1)) if dp_match else None
 
             if "AF=" in info:
-                af = re.search(r"AF=([\d\.]+)", info)
-                af = float(af.group(1)) if af else None
+                af_match = re.search(r"AF=([\d.]+)", info)
+                af = float(af_match.group(1)) if af_match else None
 
             rows.append({
                 "CHROM": chrom,
